@@ -102,6 +102,10 @@ async function getWeatherData(){
             }
         );
 
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
+
         const data = await response.json();
         loading.classList.add("hidden");
 
