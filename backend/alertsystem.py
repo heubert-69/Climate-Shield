@@ -8,6 +8,11 @@ from flask import (
     send_from_directory
 )
 
+from db import (
+    init_db,
+    get_or_create_location,
+    insert_weather
+)
 from flask_cors import CORS
 
 # =========================================================
@@ -16,6 +21,7 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
+init_db()
 
 BASE_DIR = os.path.dirname(
     os.path.dirname(
@@ -135,6 +141,15 @@ def get_weather_insights():
 
         temp_val = weather_data["main"]["temp"]
         humid_val = weather_data["main"]["humidity"]
+
+        insert_weather(location_id, {
+            "temperature": temp_val,
+            "humidity": humid_val,
+            "rainfall": rain_val,
+            "wind_speed": wind_val,
+            "pressure": weather_data["main"].get("pressure", 0)
+        }) #Changes Made to log to the database (must be inputted with the Owner's Postgres' keys)
+
 
         wind_val = round(
             weather_data["wind"]["speed"] * 3.6,
