@@ -336,11 +336,11 @@ def generate_response(user_input, context_summary=""):
 
         "I understand partially. Can you elaborate?",
 
-        "That topic seems outside my current scope. I can best assist you with queries reelated to climate ssytems",
+        "That topic seems outside my current scope. I can best assist you with queries related to climate systems",
 
-        "I am afraid I can't help you with this topic, but I would love answer your questions related to climate hazards.",
+        "I am afraid I can't help you with this topic, but I would love to answer your questions related to climate hazards.",
 
-        "Please select one of the above mentioned topics.",
+        "Please select from one of the above mentioned topics.",
 
         "Try asking me a question from these topics- flood, cyclone, wildfire, heatwave." 
     ]
