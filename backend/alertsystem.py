@@ -1,8 +1,19 @@
 import os
 import sys
 import requests
-
+from database import *
 from dotenv import load_dotenv
+from backend.database import (
+    db,
+    Location,
+    WeatherObservation,
+    ClimateRisk
+)
+
+from backend.alertsystem import (
+    process_climate_alerts
+)
+
 
 load_dotenv()
 
@@ -69,6 +80,23 @@ if CHATBOT_DIR not in sys.path:
     sys.path.insert(0, CHATBOT_DIR)
 
 from chatbot import handle_chatbot_request
+
+# =========================================================
+# DATABASE CONFIG
+# =========================================================
+
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+    "DATABASE_URL"
+)
+
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db.init_app(app)
+
+with app.app_context():
+    db.create_all()
+
+
 
 # =========================================================
 # FRONTEND ROUTES
@@ -251,7 +279,28 @@ def get_weather_insights():
 
         lat = geo_data[0]["lat"]
         lon = geo_data[0]["lon"]
+        # ----------------------------------------------------
+        # LOCATION STORAGE
+        # ----------------------------------------------------
 
+        location = Location.query.filter_by(
+            city=city,
+            state=state,
+            country=country
+        ).first()
+
+        if not location:
+
+            location = Location(
+                city=city,
+                state=state,
+                country=country,
+                latitude=lat,
+                longitude=lon
+            )
+
+        db.session.add(location)
+        db.session.commit()
         # ----------------------------------------------------
         # STEP 2: Current weather
         # ----------------------------------------------------
@@ -364,42 +413,49 @@ def get_weather_insights():
             ),
             3
         )
+        # ----------------------------------------------------
+        # WEATHER OBSERVATION STORAGE
+        # ----------------------------------------------------
+
+        observation = WeatherObservation(
+            location_id=location.id,
+            temperature=temp_val,
+            humidity=humid_val,
+            rainfall=rain_val,
+            wind_speed=wind_val
+        )
+
+        db.session.add(observation)
+        db.session.commit()
 
         # ----------------------------------------------------
-        # ALERTS
+        # CLIMATE RISK STORAGE
         # ----------------------------------------------------
 
-        calculated_alerts = []
+        risk_record = ClimateRisk(
+            observation_id=observation.id,
+            flood_risk=flood_risk_metric,
+            heat_risk=heat_risk_metric,
+            wildfire_risk=wildfire_risk_metric,
+            cyclone_risk=cyclone_risk_metric,
+            drought_risk=drought_risk_metric
+        )
 
-        if flood_risk_metric >= 0.6:
-            calculated_alerts.append(
-                "⚠ High Flood Risk Detected"
-            )
+        db.session.add(risk_record)
+        db.session.commit()
+        
+        # ----------------------------------------------------
+        # ALERTS (Proposed Changes)
+        # ----------------------------------------------------
 
-        if heat_risk_metric >= 0.6:
-            calculated_alerts.append(
-                "🔥 Heatwave Conditions Possible"
-            )
-
-        if wildfire_risk_metric >= 0.6:
-            calculated_alerts.append(
-                "🌲 Elevated Wildfire Risk"
-            )
-
-        if cyclone_risk_metric >= 0.6:
-            calculated_alerts.append(
-                "🌀 Cyclone Risk Detected"
-            )
-
-        if drought_risk_metric >= 0.6:
-            calculated_alerts.append(
-                "☀ Drought Conditions Possible"
-            )
-
-        if not calculated_alerts:
-            calculated_alerts.append(
-                "✅ No major climate threats detected."
-            )
+        events, calculated_alerts = process_climate_alerts(
+            location.id,
+            flood_risk_metric,
+            heat_risk_metric,
+            wildfire_risk_metric,
+            cyclone_risk_metric,
+            drought_risk_metric
+        )
 
         # ----------------------------------------------------
         # FORECAST GENERATION
